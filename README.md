@@ -167,6 +167,13 @@ On macOS, a shelff library stored in iCloud typically lives at:
 
 You can pass that directory directly as `--root` or `SHELFF_ROOT`.
 
+Because the path contains a space in `Mobile Documents`, quote it in shell commands:
+
+```bash
+shelff-mcp --root "/Users/<user>/Library/Mobile Documents/iCloud~jp~skoji~shelff/Documents/"
+SHELFF_ROOT="/Users/<user>/Library/Mobile Documents/iCloud~jp~skoji~shelff/Documents/" shelff-mcp
+```
+
 For large-scale edits, migrations, or batch mutations, it is safer to work on a copied library first and then sync the results back once you are satisfied.
 
 ### Exposed MCP tools
