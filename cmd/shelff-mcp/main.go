@@ -12,13 +12,13 @@ import (
 )
 
 func main() {
-	if err := run(context.Background(), os.Args[1:], os.Getenv, os.Stderr); err != nil {
+	if err := run(context.Background(), os.Args[1:], os.Getenv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, args []string, getenv func(string) string, stderr io.Writer) error {
+func run(ctx context.Context, args []string, getenv func(string) string) error {
 	root, err := resolveRoot(args, getenv)
 	if err != nil {
 		return err

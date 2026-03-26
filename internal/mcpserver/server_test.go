@@ -226,7 +226,7 @@ func TestReadOnlyToolsRejectPathTraversal(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
 	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
-		t.Fatalf("Symlink error = %v", err)
+		t.Skipf("os.Symlink unavailable: %v", err)
 	}
 
 	server := newTestServer(t, root)
