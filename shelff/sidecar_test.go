@@ -168,15 +168,14 @@ func TestWriteSidecarThenReadBack(t *testing.T) {
 	}
 }
 
-func TestWriteSidecarPreservesUnknownFields(t *testing.T) {
+func TestWriteSidecarPreservesUnknownTopLevelFields(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
 	pdfPath := writeTestPDF(t, root, "book.pdf")
 	const original = `{
   "metadata": {
-    "dc:title": "Original",
-    "dcterms:modified": "2025-01-01"
+    "dc:title": "Original"
   },
   "schemaVersion": 1,
   "x-calibre-id": 42
@@ -202,8 +201,39 @@ func TestWriteSidecarPreservesUnknownFields(t *testing.T) {
 	if metadata["dc:title"] != "Updated" {
 		t.Fatalf("metadata.dc:title = %#v, want %q", metadata["dc:title"], "Updated")
 	}
-	if metadata["dcterms:modified"] != "2025-01-01" {
-		t.Fatalf("metadata.dcterms:modified = %#v, want %q", metadata["dcterms:modified"], "2025-01-01")
+}
+
+func TestWriteSidecarDropsUnknownMetadataFields(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	pdfPath := writeTestPDF(t, root, "book.pdf")
+	const original = `{
+  "metadata": {
+    "dc:title": "Original",
+    "dcterms:modified": "2025-01-01"
+  },
+  "schemaVersion": 1
+}`
+	writeFile(t, shelff.SidecarPath(pdfPath), []byte(original))
+
+	meta, err := shelff.ReadSidecar(pdfPath)
+	if err != nil {
+		t.Fatalf("ReadSidecar returned error: %v", err)
+	}
+	meta.Metadata.Title = "Updated"
+
+	if err := shelff.WriteSidecar(pdfPath, meta); err != nil {
+		t.Fatalf("WriteSidecar returned error: %v", err)
+	}
+
+	decoded := decodeJSONFile(t, shelff.SidecarPath(pdfPath))
+	metadata := decoded["metadata"].(map[string]any)
+	if metadata["dc:title"] != "Updated" {
+		t.Fatalf("metadata.dc:title = %#v, want %q", metadata["dc:title"], "Updated")
+	}
+	if _, ok := metadata["dcterms:modified"]; ok {
+		t.Fatalf("expected metadata.dcterms:modified to be removed, got %#v", metadata["dcterms:modified"])
 	}
 }
 

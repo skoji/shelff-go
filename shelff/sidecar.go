@@ -3,7 +3,6 @@ package shelff
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,16 +16,6 @@ var (
 		"display":       {},
 		"category":      {},
 		"tags":          {},
-	}
-
-	knownMetadataKeys = map[string]struct{}{
-		"dc:title":      {},
-		"dc:creator":    {},
-		"dc:date":       {},
-		"dc:publisher":  {},
-		"dc:language":   {},
-		"dc:subject":    {},
-		"dc:identifier": {},
 	}
 )
 
@@ -83,6 +72,7 @@ func CreateSidecar(pdfPath string) (*SidecarMetadata, error) {
 }
 
 // WriteSidecar writes the sidecar JSON for the given PDF.
+// It preserves unknown top-level fields from the existing sidecar JSON.
 // It does not verify that the PDF file itself currently exists.
 func WriteSidecar(pdfPath string, meta *SidecarMetadata) error {
 	if meta == nil {
@@ -103,17 +93,6 @@ func WriteSidecar(pdfPath string, meta *SidecarMetadata) error {
 		}
 
 		mergeUnknownKeys(currentMap, originalMap, knownSidecarTopLevelKeys)
-
-		currentMetadata, err := nestedMap(currentMap, "metadata")
-		if err != nil {
-			return err
-		}
-		originalMetadata, err := nestedMap(originalMap, "metadata")
-		if err != nil {
-			return err
-		}
-		mergeUnknownKeys(currentMetadata, originalMetadata, knownMetadataKeys)
-		currentMap["metadata"] = currentMetadata
 	}
 
 	data, err := json.MarshalIndent(currentMap, "", "  ")
@@ -179,19 +158,6 @@ func jsonBytesToMap(data []byte) (map[string]any, error) {
 		result = map[string]any{}
 	}
 	return result, nil
-}
-
-func nestedMap(parent map[string]any, key string) (map[string]any, error) {
-	value, ok := parent[key]
-	if !ok || value == nil {
-		return map[string]any{}, nil
-	}
-
-	child, ok := value.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s is not a JSON object", key)
-	}
-	return child, nil
 }
 
 func mergeUnknownKeys(dst map[string]any, src map[string]any, knownKeys map[string]struct{}) {
