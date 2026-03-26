@@ -1,0 +1,3 @@
+[submodule "shelff-schema"]
+	path = shelff-schema
+	url = https://github.com/skoji/shelff-schema
