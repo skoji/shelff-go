@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // MoveBook moves a PDF and its sidecar (if present) to a destination directory.
@@ -36,7 +37,12 @@ func RenameBook(pdfPath string, newName string) (newPDFPath string, err error) {
 		return "", err
 	}
 
-	newPDFPath = filepath.Join(filepath.Dir(pdfPath), newName+".pdf")
+	normalizedName, err := normalizeRenameTargetName(newName)
+	if err != nil {
+		return "", err
+	}
+
+	newPDFPath = filepath.Join(filepath.Dir(pdfPath), normalizedName+".pdf")
 	if err := ensurePathDoesNotExist(newPDFPath); err != nil {
 		return "", err
 	}
@@ -56,10 +62,67 @@ func DeleteBook(pdfPath string) error {
 	if err := ensurePDFFile(pdfPath); err != nil {
 		return err
 	}
-	if err := os.Remove(pdfPath); err != nil {
+
+	tempPDFPath, err := nextDeleteTempPath(pdfPath)
+	if err != nil {
 		return err
 	}
-	return DeleteSidecar(pdfPath)
+	if err := os.Rename(pdfPath, tempPDFPath); err != nil {
+		return err
+	}
+	if err := DeleteSidecar(pdfPath); err != nil {
+		return rollbackBookMove(tempPDFPath, pdfPath, err)
+	}
+	if err := os.Remove(tempPDFPath); err != nil {
+		return rollbackBookMove(tempPDFPath, pdfPath, err)
+	}
+
+	return nil
+}
+
+func nextDeleteTempPath(pdfPath string) (string, error) {
+	dir := filepath.Dir(pdfPath)
+	base := filepath.Base(pdfPath)
+
+	for i := 0; ; i++ {
+		suffix := ".deleting"
+		if i > 0 {
+			suffix = fmt.Sprintf(".deleting.%d", i)
+		}
+
+		tempPath := filepath.Join(dir, base+suffix)
+		err := ensurePathDoesNotExist(tempPath)
+		if err == nil {
+			return tempPath, nil
+		}
+		if err != ErrAlreadyExists {
+			return "", err
+		}
+	}
+}
+
+func normalizeRenameTargetName(newName string) (string, error) {
+	name := strings.TrimSpace(newName)
+	if name == "" {
+		return "", ErrEmptyName
+	}
+
+	ext := filepath.Ext(name)
+	if strings.EqualFold(ext, ".pdf") {
+		name = strings.TrimSuffix(name, ext)
+		if name == "" {
+			return "", ErrEmptyName
+		}
+	}
+
+	if strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("new name must not contain path separators: %q", newName)
+	}
+	if name == "." || name == ".." {
+		return "", fmt.Errorf("new name must be a base filename: %q", newName)
+	}
+
+	return name, nil
 }
 
 func moveSidecarWithRollback(oldPDFPath string, newPDFPath string) error {
@@ -124,7 +187,7 @@ func ensureDirectory(path string) error {
 }
 
 func ensurePathDoesNotExist(path string) error {
-	_, err := os.Stat(path)
+	_, err := os.Lstat(path)
 	if err == nil {
 		return ErrAlreadyExists
 	}

@@ -155,6 +155,29 @@ func TestRenameBookRenamesPDFAndSidecar(t *testing.T) {
 	assertPathMissing(t, shelff.SidecarPath(pdfPath))
 }
 
+func TestRenameBookAcceptsOptionalPDFExtension(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	pdfPath := writeTestPDF(t, root, "book.pdf")
+	if _, err := shelff.CreateSidecar(pdfPath); err != nil {
+		t.Fatalf("CreateSidecar returned error: %v", err)
+	}
+
+	newPDFPath, err := shelff.RenameBook(pdfPath, "renamed.pdf")
+	if err != nil {
+		t.Fatalf("RenameBook returned error: %v", err)
+	}
+
+	wantPDFPath := filepath.Join(root, "renamed.pdf")
+	if newPDFPath != wantPDFPath {
+		t.Fatalf("newPDFPath = %q, want %q", newPDFPath, wantPDFPath)
+	}
+	assertPathExists(t, newPDFPath)
+	assertPathExists(t, shelff.SidecarPath(newPDFPath))
+	assertPathMissing(t, pdfPath)
+}
+
 func TestRenameBookRollsBackWhenSidecarRenameFails(t *testing.T) {
 	t.Parallel()
 
@@ -203,6 +226,42 @@ func TestRenameBookReturnsErrAlreadyExistsWhenTargetPDFExists(t *testing.T) {
 	assertPathExists(t, pdfPath)
 }
 
+func TestRenameBookReturnsErrEmptyNameForBlankTarget(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	pdfPath := writeTestPDF(t, root, "book.pdf")
+
+	_, err := shelff.RenameBook(pdfPath, "   ")
+	if !errors.Is(err, shelff.ErrEmptyName) {
+		t.Fatalf("RenameBook error = %v, want ErrEmptyName", err)
+	}
+
+	assertPathExists(t, pdfPath)
+}
+
+func TestRenameBookRejectsNonBaseNames(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	pdfPath := writeTestPDF(t, root, "book.pdf")
+
+	testCases := []string{
+		"nested/renamed",
+		`nested\renamed`,
+		".",
+		"..",
+	}
+
+	for _, newName := range testCases {
+		_, err := shelff.RenameBook(pdfPath, newName)
+		if err == nil {
+			t.Fatalf("RenameBook(%q) error = nil, want error", newName)
+		}
+		assertPathExists(t, pdfPath)
+	}
+}
+
 func TestDeleteBookDeletesPDFAndSidecar(t *testing.T) {
 	t.Parallel()
 
@@ -218,6 +277,35 @@ func TestDeleteBookDeletesPDFAndSidecar(t *testing.T) {
 
 	assertPathMissing(t, pdfPath)
 	assertPathMissing(t, shelff.SidecarPath(pdfPath))
+}
+
+func TestDeleteBookRollsBackPDFWhenSidecarDeleteFails(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	pdfPath := writeTestPDF(t, root, "book.pdf")
+	sidecarPath := shelff.SidecarPath(pdfPath)
+	if _, err := shelff.CreateSidecar(pdfPath); err != nil {
+		t.Fatalf("CreateSidecar returned error: %v", err)
+	}
+	if err := os.Remove(sidecarPath); err != nil {
+		t.Fatalf("os.Remove(%q): %v", sidecarPath, err)
+	}
+	if err := os.Mkdir(sidecarPath, 0o755); err != nil {
+		t.Fatalf("os.Mkdir(%q): %v", sidecarPath, err)
+	}
+	if err := os.WriteFile(filepath.Join(sidecarPath, "nested"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("os.WriteFile nested file: %v", err)
+	}
+
+	err := shelff.DeleteBook(pdfPath)
+	if err == nil {
+		t.Fatal("DeleteBook error = nil, want error")
+	}
+
+	assertPathExists(t, pdfPath)
+	assertPathExistsWithLstat(t, sidecarPath)
+	assertPathMissing(t, filepath.Join(root, "book.pdf.deleting"))
 }
 
 func TestDeleteBookReturnsErrPDFNotFoundWhenSourceIsMissing(t *testing.T) {
@@ -243,6 +331,29 @@ func TestDeleteBookWithoutSidecarDeletesOnlyPDF(t *testing.T) {
 	assertPathMissing(t, shelff.SidecarPath(pdfPath))
 }
 
+func TestMoveBookTreatsBrokenSymlinkDestinationAsExisting(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, "source")
+	destDir := filepath.Join(root, "dest")
+	mkdirAll(t, sourceDir, destDir)
+
+	pdfPath := writeTestPDF(t, sourceDir, "book.pdf")
+	destPDFPath := filepath.Join(destDir, "book.pdf")
+	if err := os.Symlink(filepath.Join(root, "missing-target"), destPDFPath); err != nil {
+		t.Skipf("os.Symlink unavailable: %v", err)
+	}
+
+	_, err := shelff.MoveBook(pdfPath, destDir)
+	if !errors.Is(err, shelff.ErrAlreadyExists) {
+		t.Fatalf("MoveBook error = %v, want ErrAlreadyExists", err)
+	}
+
+	assertPathExists(t, pdfPath)
+	assertPathExistsWithLstat(t, destPDFPath)
+}
+
 func mkdirAll(t *testing.T, paths ...string) {
 	t.Helper()
 
@@ -258,6 +369,14 @@ func assertPathExists(t *testing.T, path string) {
 
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected path %q to exist, stat err = %v", path, err)
+	}
+}
+
+func assertPathExistsWithLstat(t *testing.T, path string) {
+	t.Helper()
+
+	if _, err := os.Lstat(path); err != nil {
+		t.Fatalf("expected path %q to exist, lstat err = %v", path, err)
 	}
 }
 
