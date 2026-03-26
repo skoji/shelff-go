@@ -12,11 +12,20 @@ import (
 func TestOpenLibraryReturnsAbsoluteRoot(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd: %v", err)
 	}
+
+	root, err := os.MkdirTemp(wd, ".tmp-open-library-*")
+	if err != nil {
+		t.Fatalf("os.MkdirTemp: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(root); err != nil {
+			t.Fatalf("os.RemoveAll: %v", err)
+		}
+	})
 
 	relRoot, err := filepath.Rel(wd, root)
 	if err != nil {
