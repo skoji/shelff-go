@@ -232,6 +232,7 @@ Category/tag cascade operations update sidecars sequentially. If one sidecar wri
 
 ### Package-level helpers
 
+- `OpenLibrary(rootDir string) (*Library, error)`
 - `SidecarPath(pdfPath string) string`
 - `PDFPathFromSidecar(sidecarPath string) (string, bool)`
 - `IsSidecarPath(path string) bool`
@@ -245,7 +246,6 @@ Category/tag cascade operations update sidecars sequentially. If one sidecar wri
 
 ### Library methods
 
-- `OpenLibrary(rootDir string) (*Library, error)`
 - `(*Library).Root() string`
 - `(*Library).ReadCategories() (*CategoryList, error)`
 - `(*Library).WriteCategories(cats *CategoryList) error`
