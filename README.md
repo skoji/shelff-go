@@ -1,8 +1,9 @@
 # shelff-go
 
-`shelff-go` is a Go library for working with [shelff](https://skoji.dev/en/shelff/) libraries: directories of PDF files plus JSON sidecars and `.shelff/` configuration files.
+`shelff-go` provides:
 
-The current repository scope is the library package, `github.com/skoji/shelff-go/shelff`.
+- a Go library for working with [shelff](https://skoji.dev/en/shelff/) libraries
+- an MCP server, `shelff-mcp`, that exposes most of the library operations over stdio
 
 ## Installation
 
@@ -11,6 +12,12 @@ go get github.com/skoji/shelff-go/shelff
 ```
 
 The repository currently requires Go 1.25 or later because the MCP server uses the official `github.com/modelcontextprotocol/go-sdk`.
+
+To install the MCP server binary:
+
+```bash
+go install github.com/skoji/shelff-go/cmd/shelff-mcp@latest
+```
 
 ## What the library manages
 
@@ -126,6 +133,94 @@ Once a library is open, you can inspect it with:
 - `Stats()`
 - `CollectAllTags()`
 - `Validate(pdfPath)`
+
+## MCP server
+
+`shelff-mcp` runs as a stdio MCP server rooted at a single shelff library.
+
+Start it with an explicit root:
+
+```bash
+shelff-mcp --root /path/to/library
+```
+
+Or use `SHELFF_ROOT`:
+
+```bash
+SHELFF_ROOT=/path/to/library shelff-mcp
+```
+
+### Root path rules
+
+- the root must point at the shelff library directory itself
+- tool paths are always relative to that root
+- absolute paths are rejected
+- path traversal outside the root is rejected, including symlink escapes
+
+### macOS / iCloud note
+
+On macOS, a shelff library stored in iCloud typically lives at:
+
+```text
+/Users/<user>/Library/Mobile Documents/iCloud~jp~skoji~shelff/Documents/
+```
+
+You can pass that directory directly as `--root` or `SHELFF_ROOT`.
+
+Because the path contains a space in `Mobile Documents`, quote it in shell commands:
+
+```bash
+shelff-mcp --root "/Users/<user>/Library/Mobile Documents/iCloud~jp~skoji~shelff/Documents/"
+SHELFF_ROOT="/Users/<user>/Library/Mobile Documents/iCloud~jp~skoji~shelff/Documents/" shelff-mcp
+```
+
+For large-scale edits, migrations, or batch mutations, it is safer to work on a copied library first and then sync the results back once you are satisfied.
+
+### Exposed MCP tools
+
+Read-only tools:
+
+- `read_sidecar`
+- `scan_books`
+- `find_orphaned_sidecars`
+- `validate_sidecar`
+- `library_stats`
+- `collect_all_tags`
+- `read_categories`
+- `read_tag_order`
+
+Mutation tools:
+
+- `create_sidecar`
+- `write_sidecar`
+- `delete_sidecar`
+- `move_book`
+- `rename_book`
+- `add_category`
+- `remove_category`
+- `rename_category`
+- `reorder_categories`
+- `add_tag_to_order`
+- `remove_tag_from_order`
+- `rename_tag`
+- `reorder_tags`
+
+`DeleteBook` is intentionally not exposed via MCP, to reduce the risk of destructive PDF deletion from agent workflows.
+
+### `write_sidecar` semantics
+
+`write_sidecar` is an MCP-layer convenience API that accepts a partial JSON object:
+
+- in general, fields omitted from the input are left unchanged
+- object fields are merged recursively
+- arrays and scalar values replace the existing value
+- in general, `null` deletes the targeted field when that is schema-safe
+- `schemaVersion` is always normalized to the current `shelff.SchemaVersion`
+- `metadata.dc:title` is preserved from the current sidecar when it is omitted from the patch or set to `null`
+- if a patch removes a required key inside `reading` or `display`, normalization drops the entire `reading` or `display` object instead of leaving an invalid partial object behind
+- if no sidecar exists yet, the tool creates one first and then applies the patch
+
+The returned sidecar is the canonical persisted representation after normalization.
 
 ## Common usage patterns
 
