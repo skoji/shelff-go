@@ -3,6 +3,8 @@ package shelff
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -85,7 +87,7 @@ func writeFileAtomically(path string, data []byte) (err error) {
 	if err = tmpFile.Chmod(mode); err != nil {
 		return err
 	}
-	if _, err = tmpFile.Write(data); err != nil {
+	if err = writeAll(tmpFile, data); err != nil {
 		return err
 	}
 	if err = tmpFile.Sync(); err != nil {
@@ -110,4 +112,18 @@ func fileModeForAtomicWrite(path string) (os.FileMode, error) {
 		return 0o644, nil
 	}
 	return 0, err
+}
+
+func writeAll(w io.Writer, data []byte) error {
+	for len(data) > 0 {
+		n, err := w.Write(data)
+		if err != nil {
+			return err
+		}
+		if n <= 0 {
+			return fmt.Errorf("short write")
+		}
+		data = data[n:]
+	}
+	return nil
 }
