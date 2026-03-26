@@ -153,7 +153,7 @@ func TestMoveBookMovesBrokenSymlinkSidecar(t *testing.T) {
 	newSidecarPath := shelff.SidecarPath(newPDFPath)
 	assertPathExists(t, newPDFPath)
 	assertPathExistsWithLstat(t, newSidecarPath)
-	assertPathMissing(t, sidecarPath)
+	assertPathMissingWithLstat(t, sidecarPath)
 
 	target, err := os.Readlink(newSidecarPath)
 	if err != nil {
@@ -418,5 +418,13 @@ func assertPathMissing(t *testing.T, path string) {
 
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("expected path %q to be missing, stat err = %v", path, err)
+	}
+}
+
+func assertPathMissingWithLstat(t *testing.T, path string) {
+	t.Helper()
+
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected path %q to be missing, lstat err = %v", path, err)
 	}
 }
