@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -474,6 +475,12 @@ func sidecarToMap(pdfPath string, meta *shelff.SidecarMetadata) (map[string]any,
 	if err := decoder.Decode(&decoded); err != nil {
 		return nil, err
 	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return nil, errors.New("invalid JSON: unexpected trailing data")
+		}
+		return nil, err
+	}
 	if decoded == nil {
 		decoded = map[string]any{}
 	}
@@ -527,8 +534,30 @@ func normalizeMergedSidecar(current map[string]any, merged map[string]any) map[s
 		}
 	}
 	merged["metadata"] = mergedMetadata
+	normalizeRequiredObject(merged, "reading", "lastReadAt", "lastReadPage", "totalPages")
+	normalizeRequiredObject(merged, "display", "direction")
 
 	return merged
+}
+
+func normalizeRequiredObject(merged map[string]any, key string, requiredKeys ...string) {
+	raw, ok := merged[key]
+	if !ok {
+		return
+	}
+
+	object, ok := raw.(map[string]any)
+	if !ok || object == nil {
+		delete(merged, key)
+		return
+	}
+
+	for _, requiredKey := range requiredKeys {
+		if _, present := object[requiredKey]; !present || object[requiredKey] == nil {
+			delete(merged, key)
+			return
+		}
+	}
 }
 
 func cloneJSONObject(value map[string]any) map[string]any {

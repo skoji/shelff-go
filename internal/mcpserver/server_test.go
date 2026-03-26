@@ -273,7 +273,7 @@ func TestSidecarMutationTools(t *testing.T) {
 		t.Fatalf("write_sidecar first output = %#v", writeOut)
 	}
 
-	writeRawJSONFile(t, shelff.SidecarPath(pdfPath), `{"schemaVersion":1,"metadata":{"dc:title":"book","dc:creator":["Ada"]},"tags":["go","mcp"],"x-custom":9007199254740993}`)
+	writeRawJSONFile(t, shelff.SidecarPath(pdfPath), `{"schemaVersion":1,"metadata":{"dc:title":"book","dc:creator":["Ada"]},"category":"Reference","tags":["go","mcp"],"reading":{"lastReadPage":10,"lastReadAt":"2026-03-26T10:00:00Z","totalPages":100},"display":{"direction":"RTL"},"x-custom":9007199254740993}`)
 
 	writeResult, err = session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "write_sidecar",
@@ -285,6 +285,12 @@ func TestSidecarMutationTools(t *testing.T) {
 					"dc:title": nil,
 				},
 				"category": nil,
+				"reading": map[string]any{
+					"lastReadAt": nil,
+				},
+				"display": map[string]any{
+					"direction": nil,
+				},
 			},
 		},
 	})
@@ -304,6 +310,12 @@ func TestSidecarMutationTools(t *testing.T) {
 	}
 	if writeOut.Sidecar.Category != nil {
 		t.Fatalf("write_sidecar category = %#v, want nil", writeOut.Sidecar.Category)
+	}
+	if writeOut.Sidecar.Reading != nil {
+		t.Fatalf("write_sidecar reading = %#v, want nil", writeOut.Sidecar.Reading)
+	}
+	if writeOut.Sidecar.Display != nil {
+		t.Fatalf("write_sidecar display = %#v, want nil", writeOut.Sidecar.Display)
 	}
 
 	rawSidecar := readJSONFileUseNumber(t, shelff.SidecarPath(pdfPath))
