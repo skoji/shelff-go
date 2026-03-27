@@ -157,20 +157,32 @@ func TestScanBooksInDirectoryWithSymlinkRootNormalizesPathsAndSkipsConfigDir(t *
 	configDir := filepath.Join(realRoot, shelff.ConfigDir)
 	mkdirAll(t, configDir)
 	writeTestPDF(t, configDir, "ignored.pdf")
+	orphanSidecar := shelff.SidecarPath(filepath.Join(realRoot, "orphan.pdf"))
+	writeRawJSONFile(t, orphanSidecar, `{"schemaVersion":1,"metadata":{"dc:title":"orphan"}}`)
 
 	if err := os.Symlink(realRoot, linkRoot); err != nil {
 		t.Skipf("os.Symlink unavailable: %v", err)
 	}
 
 	library := openTestLibrary(t, linkRoot)
-	books, err := library.ScanBooksInDirectory(".", true)
+	books, err := library.ScanBooks(true)
 	if err != nil {
-		t.Fatalf("ScanBooksInDirectory returned error: %v", err)
+		t.Fatalf("ScanBooks returned error: %v", err)
 	}
 
 	wantPDF := filepath.Join(linkRoot, filepath.Base(selectedPDF))
 	if len(books) != 1 || books[0].PDFPath != wantPDF {
 		t.Fatalf("books = %#v, want only %q under symlink root", books, wantPDF)
+	}
+
+	orphaned, err := library.FindOrphanedSidecars()
+	if err != nil {
+		t.Fatalf("FindOrphanedSidecars returned error: %v", err)
+	}
+	wantSidecar := filepath.Join(linkRoot, filepath.Base(orphanSidecar))
+	wantExpectedPDF := filepath.Join(linkRoot, "orphan.pdf")
+	if len(orphaned) != 1 || orphaned[0].SidecarPath != wantSidecar || orphaned[0].ExpectedPDF != wantExpectedPDF {
+		t.Fatalf("orphaned = %#v, want sidecar=%q expectedPDF=%q", orphaned, wantSidecar, wantExpectedPDF)
 	}
 }
 

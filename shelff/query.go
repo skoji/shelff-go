@@ -91,8 +91,13 @@ func (l *Library) normalizeLibraryPath(path string, resolvedRoot string) string 
 // FindOrphanedSidecars finds sidecar JSON files that have no corresponding PDF.
 // Scans recursively.
 func (l *Library) FindOrphanedSidecars() ([]OrphanedSidecar, error) {
+	resolvedRoot, err := filepath.EvalSymlinks(l.root)
+	if err != nil {
+		return nil, err
+	}
+
 	orphaned := make([]OrphanedSidecar, 0)
-	err := l.walkLibraryFiles(true, func(path string, d fs.DirEntry) error {
+	err = l.walkLibraryFiles(true, func(path string, d fs.DirEntry) error {
 		if !IsSidecarPath(path) {
 			return nil
 		}
@@ -111,8 +116,8 @@ func (l *Library) FindOrphanedSidecars() ([]OrphanedSidecar, error) {
 		}
 
 		orphaned = append(orphaned, OrphanedSidecar{
-			SidecarPath: path,
-			ExpectedPDF: expectedPDF,
+			SidecarPath: l.normalizeLibraryPath(path, resolvedRoot),
+			ExpectedPDF: l.normalizeLibraryPath(expectedPDF, resolvedRoot),
 		})
 		return nil
 	})
@@ -252,11 +257,23 @@ func (l *Library) walkLibraryFiles(recursive bool, visit func(path string, d fs.
 }
 
 func (l *Library) walkLibraryFilesFrom(startDir string, recursive bool, visit func(path string, d fs.DirEntry) error) error {
-	return filepath.WalkDir(startDir, func(path string, d fs.DirEntry, err error) error {
+	walkStart := startDir
+	startInfo, err := os.Lstat(startDir)
+	if err != nil {
+		return err
+	}
+	if startInfo.Mode()&os.ModeSymlink != 0 {
+		walkStart, err = filepath.EvalSymlinks(startDir)
 		if err != nil {
 			return err
 		}
-		if path == startDir {
+	}
+
+	return filepath.WalkDir(walkStart, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == walkStart {
 			return nil
 		}
 
