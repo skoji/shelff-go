@@ -83,6 +83,16 @@ type readSidecarOutput struct {
 	Sidecar *shelff.SidecarMetadata `json:"sidecar,omitempty"`
 }
 
+type readCategoriesOutput struct {
+	Exists     bool                 `json:"exists"`
+	Categories *shelff.CategoryList `json:"categories,omitempty"`
+}
+
+type readTagOrderOutput struct {
+	Exists   bool             `json:"exists"`
+	TagOrder *shelff.TagOrder `json:"tagOrder,omitempty"`
+}
+
 type bookPathOutput struct {
 	PDFPath string `json:"pdfPath"`
 }
@@ -492,74 +502,80 @@ func (s *Server) collectAllTags(_ context.Context, _ *mcp.CallToolRequest, _ str
 	return nil, collectAllTagsOutput{Tags: tags}, nil
 }
 
-func (s *Server) readCategories(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, shelff.CategoryList, error) {
+func (s *Server) readCategories(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, readCategoriesOutput, error) {
 	categories, err := s.library.ReadCategories()
 	if err != nil {
-		return nil, shelff.CategoryList{}, err
+		return nil, readCategoriesOutput{}, err
 	}
-	return nil, *categories, nil
+	return nil, readCategoriesOutput{
+		Exists:     categories != nil,
+		Categories: categories,
+	}, nil
 }
 
-func (s *Server) addCategory(ctx context.Context, _ *mcp.CallToolRequest, in nameInput) (*mcp.CallToolResult, shelff.CategoryList, error) {
+func (s *Server) addCategory(ctx context.Context, _ *mcp.CallToolRequest, in nameInput) (*mcp.CallToolResult, readCategoriesOutput, error) {
 	if err := s.library.AddCategory(in.Name); err != nil {
-		return nil, shelff.CategoryList{}, err
+		return nil, readCategoriesOutput{}, err
 	}
 	return s.readCategories(ctx, nil, struct{}{})
 }
 
-func (s *Server) removeCategory(ctx context.Context, _ *mcp.CallToolRequest, in cascadeNameInput) (*mcp.CallToolResult, shelff.CategoryList, error) {
+func (s *Server) removeCategory(ctx context.Context, _ *mcp.CallToolRequest, in cascadeNameInput) (*mcp.CallToolResult, readCategoriesOutput, error) {
 	if err := s.library.RemoveCategory(in.Name, in.Cascade); err != nil {
-		return nil, shelff.CategoryList{}, err
+		return nil, readCategoriesOutput{}, err
 	}
 	return s.readCategories(ctx, nil, struct{}{})
 }
 
-func (s *Server) renameCategory(ctx context.Context, _ *mcp.CallToolRequest, in renameConfigInput) (*mcp.CallToolResult, shelff.CategoryList, error) {
+func (s *Server) renameCategory(ctx context.Context, _ *mcp.CallToolRequest, in renameConfigInput) (*mcp.CallToolResult, readCategoriesOutput, error) {
 	if err := s.library.RenameCategory(in.OldName, in.NewName, in.Cascade); err != nil {
-		return nil, shelff.CategoryList{}, err
+		return nil, readCategoriesOutput{}, err
 	}
 	return s.readCategories(ctx, nil, struct{}{})
 }
 
-func (s *Server) reorderCategories(ctx context.Context, _ *mcp.CallToolRequest, in reorderNamesInput) (*mcp.CallToolResult, shelff.CategoryList, error) {
+func (s *Server) reorderCategories(ctx context.Context, _ *mcp.CallToolRequest, in reorderNamesInput) (*mcp.CallToolResult, readCategoriesOutput, error) {
 	if err := s.library.ReorderCategories(in.Names); err != nil {
-		return nil, shelff.CategoryList{}, err
+		return nil, readCategoriesOutput{}, err
 	}
 	return s.readCategories(ctx, nil, struct{}{})
 }
 
-func (s *Server) readTagOrder(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, shelff.TagOrder, error) {
+func (s *Server) readTagOrder(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, readTagOrderOutput, error) {
 	tagOrder, err := s.library.ReadTagOrder()
 	if err != nil {
-		return nil, shelff.TagOrder{}, err
+		return nil, readTagOrderOutput{}, err
 	}
-	return nil, *tagOrder, nil
+	return nil, readTagOrderOutput{
+		Exists:   tagOrder != nil,
+		TagOrder: tagOrder,
+	}, nil
 }
 
-func (s *Server) addTagToOrder(ctx context.Context, _ *mcp.CallToolRequest, in nameInput) (*mcp.CallToolResult, shelff.TagOrder, error) {
+func (s *Server) addTagToOrder(ctx context.Context, _ *mcp.CallToolRequest, in nameInput) (*mcp.CallToolResult, readTagOrderOutput, error) {
 	if err := s.library.AddTagToOrder(in.Name); err != nil {
-		return nil, shelff.TagOrder{}, err
+		return nil, readTagOrderOutput{}, err
 	}
 	return s.readTagOrder(ctx, nil, struct{}{})
 }
 
-func (s *Server) removeTagFromOrder(ctx context.Context, _ *mcp.CallToolRequest, in cascadeNameInput) (*mcp.CallToolResult, shelff.TagOrder, error) {
+func (s *Server) removeTagFromOrder(ctx context.Context, _ *mcp.CallToolRequest, in cascadeNameInput) (*mcp.CallToolResult, readTagOrderOutput, error) {
 	if err := s.library.RemoveTagFromOrder(in.Name, in.Cascade); err != nil {
-		return nil, shelff.TagOrder{}, err
+		return nil, readTagOrderOutput{}, err
 	}
 	return s.readTagOrder(ctx, nil, struct{}{})
 }
 
-func (s *Server) renameTag(ctx context.Context, _ *mcp.CallToolRequest, in renameConfigInput) (*mcp.CallToolResult, shelff.TagOrder, error) {
+func (s *Server) renameTag(ctx context.Context, _ *mcp.CallToolRequest, in renameConfigInput) (*mcp.CallToolResult, readTagOrderOutput, error) {
 	if err := s.library.RenameTag(in.OldName, in.NewName, in.Cascade); err != nil {
-		return nil, shelff.TagOrder{}, err
+		return nil, readTagOrderOutput{}, err
 	}
 	return s.readTagOrder(ctx, nil, struct{}{})
 }
 
-func (s *Server) reorderTags(ctx context.Context, _ *mcp.CallToolRequest, in reorderNamesInput) (*mcp.CallToolResult, shelff.TagOrder, error) {
+func (s *Server) reorderTags(ctx context.Context, _ *mcp.CallToolRequest, in reorderNamesInput) (*mcp.CallToolResult, readTagOrderOutput, error) {
 	if err := s.library.ReorderTags(in.Names); err != nil {
-		return nil, shelff.TagOrder{}, err
+		return nil, readTagOrderOutput{}, err
 	}
 	return s.readTagOrder(ctx, nil, struct{}{})
 }

@@ -205,9 +205,9 @@ func TestReadOnlyToolsReturnStructuredData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read_categories error = %v", err)
 	}
-	var categoriesOut shelff.CategoryList
+	var categoriesOut readCategoriesOutput
 	decodeStructuredContent(t, categoriesResult, &categoriesOut)
-	if categoriesOut.Version != 1 || len(categoriesOut.Categories) != 2 {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || categoriesOut.Categories.Version != 1 || len(categoriesOut.Categories.Categories) != 2 {
 		t.Fatalf("read_categories = %#v", categoriesOut)
 	}
 
@@ -218,9 +218,9 @@ func TestReadOnlyToolsReturnStructuredData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read_tag_order error = %v", err)
 	}
-	var tagOrderOut shelff.TagOrder
+	var tagOrderOut readTagOrderOutput
 	decodeStructuredContent(t, tagOrderResult, &tagOrderOut)
-	if tagOrderOut.Version != 1 || !slices.Equal(tagOrderOut.TagOrder, []string{"reading", "golang"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || tagOrderOut.TagOrder.Version != 1 || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"reading", "golang"}) {
 		t.Fatalf("read_tag_order = %#v", tagOrderOut)
 	}
 }
@@ -490,9 +490,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add_category error = %v", err)
 	}
-	var categoriesOut shelff.CategoryList
+	var categoriesOut readCategoriesOutput
 	decodeStructuredContent(t, addCategoryResult, &categoriesOut)
-	if len(categoriesOut.Categories) != 1 || categoriesOut.Categories[0].Name != "Reference" {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || len(categoriesOut.Categories.Categories) != 1 || categoriesOut.Categories.Categories[0].Name != "Reference" {
 		t.Fatalf("add_category output = %#v", categoriesOut)
 	}
 
@@ -507,9 +507,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename_category error = %v", err)
 	}
-	categoriesOut = shelff.CategoryList{}
+	categoriesOut = readCategoriesOutput{}
 	decodeStructuredContent(t, renameCategoryResult, &categoriesOut)
-	if len(categoriesOut.Categories) != 1 || categoriesOut.Categories[0].Name != "Docs" {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || len(categoriesOut.Categories.Categories) != 1 || categoriesOut.Categories.Categories[0].Name != "Docs" {
 		t.Fatalf("rename_category output = %#v", categoriesOut)
 	}
 	renamedSidecar, err := shelff.ReadSidecar(renamedPDFPath)
@@ -528,7 +528,7 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 		t.Fatalf("second add_category error = %v", err)
 	}
 	decodeStructuredContent(t, addCategoryResult, &categoriesOut)
-	if len(categoriesOut.Categories) != 2 {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || len(categoriesOut.Categories.Categories) != 2 {
 		t.Fatalf("second add_category output = %#v", categoriesOut)
 	}
 
@@ -539,9 +539,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reorder_categories error = %v", err)
 	}
-	categoriesOut = shelff.CategoryList{}
+	categoriesOut = readCategoriesOutput{}
 	decodeStructuredContent(t, reorderCategoriesResult, &categoriesOut)
-	if len(categoriesOut.Categories) != 2 || categoriesOut.Categories[0].Name != "Archive" || categoriesOut.Categories[1].Name != "Docs" {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || len(categoriesOut.Categories.Categories) != 2 || categoriesOut.Categories.Categories[0].Name != "Archive" || categoriesOut.Categories.Categories[1].Name != "Docs" {
 		t.Fatalf("reorder_categories output = %#v", categoriesOut)
 	}
 
@@ -555,9 +555,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("remove_category error = %v", err)
 	}
-	categoriesOut = shelff.CategoryList{}
+	categoriesOut = readCategoriesOutput{}
 	decodeStructuredContent(t, removeCategoryResult, &categoriesOut)
-	if len(categoriesOut.Categories) != 1 || categoriesOut.Categories[0].Name != "Archive" {
+	if !categoriesOut.Exists || categoriesOut.Categories == nil || len(categoriesOut.Categories.Categories) != 1 || categoriesOut.Categories.Categories[0].Name != "Archive" {
 		t.Fatalf("remove_category output = %#v", categoriesOut)
 	}
 	renamedSidecar, err = shelff.ReadSidecar(renamedPDFPath)
@@ -575,9 +575,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("add_tag_to_order error = %v", err)
 	}
-	var tagOrderOut shelff.TagOrder
+	var tagOrderOut readTagOrderOutput
 	decodeStructuredContent(t, addTagResult, &tagOrderOut)
-	if !slices.Equal(tagOrderOut.TagOrder, []string{"go"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"go"}) {
 		t.Fatalf("add_tag_to_order output = %#v", tagOrderOut)
 	}
 
@@ -589,7 +589,7 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 		t.Fatalf("second add_tag_to_order error = %v", err)
 	}
 	decodeStructuredContent(t, addTagResult, &tagOrderOut)
-	if !slices.Equal(tagOrderOut.TagOrder, []string{"go", "mcp"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"go", "mcp"}) {
 		t.Fatalf("second add_tag_to_order output = %#v", tagOrderOut)
 	}
 
@@ -604,9 +604,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename_tag error = %v", err)
 	}
-	tagOrderOut = shelff.TagOrder{}
+	tagOrderOut = readTagOrderOutput{}
 	decodeStructuredContent(t, renameTagResult, &tagOrderOut)
-	if !slices.Equal(tagOrderOut.TagOrder, []string{"golang", "mcp"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"golang", "mcp"}) {
 		t.Fatalf("rename_tag output = %#v", tagOrderOut)
 	}
 	renamedSidecar, err = shelff.ReadSidecar(renamedPDFPath)
@@ -624,9 +624,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reorder_tags error = %v", err)
 	}
-	tagOrderOut = shelff.TagOrder{}
+	tagOrderOut = readTagOrderOutput{}
 	decodeStructuredContent(t, reorderTagsResult, &tagOrderOut)
-	if !slices.Equal(tagOrderOut.TagOrder, []string{"mcp", "golang", "extra"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"mcp", "golang", "extra"}) {
 		t.Fatalf("reorder_tags output = %#v", tagOrderOut)
 	}
 
@@ -640,9 +640,9 @@ func TestBookAndConfigMutationTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("remove_tag_from_order error = %v", err)
 	}
-	tagOrderOut = shelff.TagOrder{}
+	tagOrderOut = readTagOrderOutput{}
 	decodeStructuredContent(t, removeTagResult, &tagOrderOut)
-	if !slices.Equal(tagOrderOut.TagOrder, []string{"golang", "extra"}) {
+	if !tagOrderOut.Exists || tagOrderOut.TagOrder == nil || !slices.Equal(tagOrderOut.TagOrder.TagOrder, []string{"golang", "extra"}) {
 		t.Fatalf("remove_tag_from_order output = %#v", tagOrderOut)
 	}
 	renamedSidecar, err = shelff.ReadSidecar(renamedPDFPath)
