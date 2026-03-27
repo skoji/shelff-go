@@ -388,3 +388,121 @@ func isRegularFile(path string) (bool, error) {
 	}
 	return info.Mode().IsRegular(), nil
 }
+
+// CheckLibrary runs diagnostic checks on the library and returns a report.
+func (l *Library) CheckLibrary() (*CheckLibraryResult, error) {
+	// Check .shelff directory and config files
+	var dotShelff DotShelffStatus
+	configInfo, err := os.Stat(l.configDirPath())
+	if err == nil && configInfo.IsDir() {
+		dotShelff.Exists = true
+		if _, err := os.Stat(l.categoriesPath()); err == nil {
+			dotShelff.CategoriesJSON = true
+		}
+		if _, err := os.Stat(l.tagsPath()); err == nil {
+			dotShelff.TagsJSON = true
+		}
+	}
+
+	// Read config files (nil when missing)
+	catList, err := l.ReadCategories()
+	if err != nil {
+		return nil, err
+	}
+	tagOrder, err := l.ReadTagOrder()
+	if err != nil {
+		return nil, err
+	}
+
+	// Scan books and collect used categories/tags
+	books, err := l.ScanBooks(true)
+	if err != nil {
+		return nil, err
+	}
+
+	usedCategories := make(map[string]struct{})
+	usedTags := make(map[string]struct{})
+	withSidecar := 0
+	for _, book := range books {
+		if !book.HasSidecar {
+			continue
+		}
+		withSidecar++
+		meta, err := ReadSidecar(book.PDFPath)
+		if err != nil {
+			return nil, err
+		}
+		if meta == nil {
+			continue
+		}
+		if meta.Category != nil {
+			usedCategories[*meta.Category] = struct{}{}
+		}
+		for _, tag := range meta.Tags {
+			usedTags[tag] = struct{}{}
+		}
+	}
+
+	// Compute integrity
+	var integrity IntegrityReport
+
+	// Build defined sets
+	definedCategories := make(map[string]struct{})
+	if catList != nil {
+		for _, cat := range catList.Categories {
+			definedCategories[cat.Name] = struct{}{}
+		}
+	}
+	definedTags := make(map[string]struct{})
+	if tagOrder != nil {
+		for _, tag := range tagOrder.TagOrder {
+			definedTags[tag] = struct{}{}
+		}
+	}
+
+	// Undefined: used but not defined
+	integrity.UndefinedCategories = sortedDiff(usedCategories, definedCategories)
+	integrity.UndefinedTags = sortedDiff(usedTags, definedTags)
+
+	// Unused: defined but not used
+	integrity.UnusedCategories = sortedDiff(definedCategories, usedCategories)
+	integrity.UnusedTags = sortedDiff(definedTags, usedTags)
+
+	// Orphaned sidecars
+	orphaned, err := l.FindOrphanedSidecars()
+	if err != nil {
+		return nil, err
+	}
+	orphanedPaths := make([]string, len(orphaned))
+	for i, o := range orphaned {
+		rel, err := filepath.Rel(l.root, o.SidecarPath)
+		if err != nil {
+			orphanedPaths[i] = o.SidecarPath
+		} else {
+			orphanedPaths[i] = rel
+		}
+	}
+
+	return &CheckLibraryResult{
+		DotShelff:        dotShelff,
+		Integrity:        integrity,
+		OrphanedSidecars: orphanedPaths,
+		Summary: LibrarySummary{
+			TotalPDFs:      len(books),
+			WithSidecar:    withSidecar,
+			WithoutSidecar: len(books) - withSidecar,
+		},
+	}, nil
+}
+
+// sortedDiff returns sorted keys in a that are not in b.
+func sortedDiff(a, b map[string]struct{}) []string {
+	result := make([]string, 0)
+	for key := range a {
+		if _, ok := b[key]; !ok {
+			result = append(result, key)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
