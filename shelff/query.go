@@ -221,7 +221,7 @@ func (l *Library) CollectAllTags() ([]string, error) {
 		}
 	}
 
-	tagsConfig, err := l.ReadTagOrder()
+	tagsConfig, err := l.readOrInitTagOrder()
 	if err != nil {
 		return nil, err
 	}
