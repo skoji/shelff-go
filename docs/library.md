@@ -264,6 +264,7 @@ Category/tag cascade operations update sidecars sequentially. If one sidecar wri
 - `(*Library).RenameTag(oldName, newName string, cascade bool) error`
 - `(*Library).ReorderTags(names []string) error`
 - `(*Library).ScanBooks(recursive bool) ([]BookEntry, error)`
+- `(*Library).ScanBooksInDirectory(directoryPath string, recursive bool) ([]BookEntry, error)`
 - `(*Library).FindOrphanedSidecars() ([]OrphanedSidecar, error)`
 - `(*Library).Validate(pdfPath string) ([]string, error)`
 - `(*Library).Stats() (*LibraryStats, error)`
