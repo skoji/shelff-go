@@ -129,7 +129,7 @@ Use these APIs:
 Once a library is open, you can inspect it with:
 
 - `ScanBooks(recursive bool)`
-- `ScanBooksInDirectory(directoryPath, recursive bool)`
+- `ScanBooksInDirectory(directoryPath string, recursive bool)`
 - `FindOrphanedSidecars()`
 - `Stats()`
 - `CollectAllTags()`
