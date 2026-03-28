@@ -951,6 +951,49 @@ func TestListDirectories(t *testing.T) {
 	if want := []string{"a", "a/nested", "b"}; !slices.Equal(out.Directories, want) {
 		t.Fatalf("list_directories recursive = %v, want %v", out.Directories, want)
 	}
+
+	// directory: "" should behave like listing from the root
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "list_directories",
+		Arguments: map[string]any{"recursive": false, "directory": ""},
+	})
+	if err != nil {
+		t.Fatalf("list_directories with empty directory error = %v", err)
+	}
+	out = listDirectoriesOutput{}
+	decodeStructuredContent(t, result, &out)
+	slices.Sort(out.Directories)
+	if want := []string{"a", "b"}; !slices.Equal(out.Directories, want) {
+		t.Fatalf("list_directories with empty directory = %v, want %v", out.Directories, want)
+	}
+
+	// directory: "a" should return only entries under "a"
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "list_directories",
+		Arguments: map[string]any{"recursive": true, "directory": "a"},
+	})
+	if err != nil {
+		t.Fatalf("list_directories with directory=a error = %v", err)
+	}
+	out = listDirectoriesOutput{}
+	decodeStructuredContent(t, result, &out)
+	if want := []string{"a/nested"}; !slices.Equal(out.Directories, want) {
+		t.Fatalf("list_directories with directory=a = %v, want %v", out.Directories, want)
+	}
+
+	// directory: ".shelff" should return empty list
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "list_directories",
+		Arguments: map[string]any{"recursive": true, "directory": ".shelff"},
+	})
+	if err != nil {
+		t.Fatalf("list_directories with directory=.shelff error = %v", err)
+	}
+	out = listDirectoriesOutput{}
+	decodeStructuredContent(t, result, &out)
+	if len(out.Directories) != 0 {
+		t.Fatalf("list_directories with directory=.shelff = %v, want empty", out.Directories)
+	}
 }
 
 func TestCreateDirectory(t *testing.T) {

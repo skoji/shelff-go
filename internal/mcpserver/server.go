@@ -481,18 +481,27 @@ func (s *Server) scanBooks(_ context.Context, _ *mcp.CallToolRequest, in scanBoo
 func (s *Server) listDirectories(_ context.Context, _ *mcp.CallToolRequest, in listDirectoriesInput) (*mcp.CallToolResult, listDirectoriesOutput, error) {
 	startDir := s.library.Root()
 	if in.Directory != nil {
-		resolved, err := s.resolveDirectoryPath(*in.Directory)
-		if err != nil {
-			return nil, listDirectoriesOutput{}, err
+		dir := strings.TrimSpace(*in.Directory)
+		if dir != "" {
+			resolved, err := s.resolveDirectoryPath(dir)
+			if err != nil {
+				return nil, listDirectoriesOutput{}, err
+			}
+			resolved, err = resolveExistingPath(resolved)
+			if err != nil {
+				return nil, listDirectoriesOutput{}, err
+			}
+			if err := s.ensureWithinRoot(resolved); err != nil {
+				return nil, listDirectoriesOutput{}, err
+			}
+			startDir = resolved
 		}
-		resolved, err = resolveExistingPath(resolved)
-		if err != nil {
-			return nil, listDirectoriesOutput{}, err
-		}
-		if err := s.ensureWithinRoot(resolved); err != nil {
-			return nil, listDirectoriesOutput{}, err
-		}
-		startDir = resolved
+	}
+
+	configDir := filepath.Clean(filepath.Join(s.library.Root(), shelff.ConfigDir))
+	cleanStart := filepath.Clean(startDir)
+	if cleanStart == configDir || strings.HasPrefix(cleanStart, configDir+string(filepath.Separator)) {
+		return nil, listDirectoriesOutput{Directories: []string{}}, nil
 	}
 
 	var dirs []string
@@ -509,7 +518,7 @@ func (s *Server) listDirectories(_ context.Context, _ *mcp.CallToolRequest, in l
 		}
 		rel, err := s.relativePath(filepath.Join(startDir, entry.Name()))
 		if err != nil {
-			continue
+			return nil, listDirectoriesOutput{}, err
 		}
 		dirs = append(dirs, rel)
 		if in.Recursive {
@@ -542,7 +551,7 @@ func (s *Server) listSubdirectories(dir string) ([]string, error) {
 		full := filepath.Join(dir, entry.Name())
 		rel, err := s.relativePath(full)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		dirs = append(dirs, rel)
 		sub, err := s.listSubdirectories(full)
