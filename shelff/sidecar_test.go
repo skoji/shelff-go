@@ -472,6 +472,109 @@ func TestWriteSidecarPreservesExistingFileMode(t *testing.T) {
 	}
 }
 
+func TestWriteSidecarRejectsInvalidDirection(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdf := writeTestPDF(t, dir, "test.pdf")
+
+	meta := &shelff.SidecarMetadata{
+		SchemaVersion: shelff.SchemaVersion,
+		Metadata:      shelff.DublinCore{Title: "test"},
+		Display: &shelff.DisplaySettings{
+			Direction: shelff.Direction("invalid"),
+		},
+	}
+	err := shelff.WriteSidecar(pdf, meta)
+	if !errors.Is(err, shelff.ErrInvalidFieldValue) {
+		t.Fatalf("WriteSidecar with invalid direction: got %v, want ErrInvalidFieldValue", err)
+	}
+}
+
+func TestWriteSidecarRejectsInvalidPageLayout(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdf := writeTestPDF(t, dir, "test.pdf")
+
+	layout := shelff.PageLayout("bogus")
+	meta := &shelff.SidecarMetadata{
+		SchemaVersion: shelff.SchemaVersion,
+		Metadata:      shelff.DublinCore{Title: "test"},
+		Display: &shelff.DisplaySettings{
+			Direction:  shelff.DirectionLTR,
+			PageLayout: &layout,
+		},
+	}
+	err := shelff.WriteSidecar(pdf, meta)
+	if !errors.Is(err, shelff.ErrInvalidFieldValue) {
+		t.Fatalf("WriteSidecar with invalid pageLayout: got %v, want ErrInvalidFieldValue", err)
+	}
+}
+
+func TestWriteSidecarRejectsInvalidReadingStatus(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdf := writeTestPDF(t, dir, "test.pdf")
+
+	status := shelff.ReadingStatus("bogus")
+	meta := &shelff.SidecarMetadata{
+		SchemaVersion: shelff.SchemaVersion,
+		Metadata:      shelff.DublinCore{Title: "test"},
+		Reading: &shelff.ReadingProgress{
+			LastReadPage: 1,
+			LastReadAt:   time.Now(),
+			TotalPages:   100,
+			Status:       &status,
+		},
+	}
+	err := shelff.WriteSidecar(pdf, meta)
+	if !errors.Is(err, shelff.ErrInvalidFieldValue) {
+		t.Fatalf("WriteSidecar with invalid status: got %v, want ErrInvalidFieldValue", err)
+	}
+}
+
+func TestWriteSidecarAcceptsNilOptionalFields(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdf := writeTestPDF(t, dir, "test.pdf")
+
+	meta := &shelff.SidecarMetadata{
+		SchemaVersion: shelff.SchemaVersion,
+		Metadata:      shelff.DublinCore{Title: "test"},
+	}
+	if err := shelff.WriteSidecar(pdf, meta); err != nil {
+		t.Fatalf("WriteSidecar with nil Display/Reading: %v", err)
+	}
+}
+
+func TestReadSidecarAcceptsInvalidEnumValues(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdf := writeTestPDF(t, dir, "test.pdf")
+
+	raw := `{
+		"schemaVersion": 1,
+		"metadata": {"dc:title": "test"},
+		"display": {"direction": "DIAGONAL", "pageLayout": "triple"},
+		"reading": {"lastReadPage": 1, "lastReadAt": "2026-01-01T00:00:00Z", "totalPages": 10, "status": "paused"}
+	}`
+	sidecarPath := pdf + shelff.SidecarSuffix
+	writeFile(t, sidecarPath, []byte(raw))
+
+	meta, err := shelff.ReadSidecar(pdf)
+	if err != nil {
+		t.Fatalf("ReadSidecar with invalid enum values: %v", err)
+	}
+	if meta.Display.Direction != shelff.Direction("DIAGONAL") {
+		t.Fatalf("Direction = %q, want %q", meta.Display.Direction, "DIAGONAL")
+	}
+	if *meta.Display.PageLayout != shelff.PageLayout("triple") {
+		t.Fatalf("PageLayout = %q, want %q", *meta.Display.PageLayout, "triple")
+	}
+	if *meta.Reading.Status != shelff.ReadingStatus("paused") {
+		t.Fatalf("Status = %q, want %q", *meta.Reading.Status, "paused")
+	}
+}
+
 func writeTestPDF(t *testing.T, dir string, name string) string {
 	t.Helper()
 
