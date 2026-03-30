@@ -1,4 +1,4 @@
-package shelff
+package shelff_test
 
 import (
 	"encoding/json"
@@ -6,9 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/skoji/shelff-go/shelff"
 )
 
 func TestReadMetadataReturnsSidecarWhenExists(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
@@ -16,12 +19,12 @@ func TestReadMetadataReturnsSidecarWhenExists(t *testing.T) {
 	}
 
 	// Create a sidecar first
-	created, err := CreateSidecar(pdfPath)
+	created, err := shelff.CreateSidecar(pdfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := ReadMetadata(pdfPath)
+	meta, err := shelff.ReadMetadata(pdfPath)
 	if err != nil {
 		t.Fatalf("ReadMetadata error = %v", err)
 	}
@@ -37,13 +40,14 @@ func TestReadMetadataReturnsSidecarWhenExists(t *testing.T) {
 }
 
 func TestReadMetadataReturnsMinimalWhenNoSidecar(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "my-book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := ReadMetadata(pdfPath)
+	meta, err := shelff.ReadMetadata(pdfPath)
 	if err != nil {
 		t.Fatalf("ReadMetadata error = %v", err)
 	}
@@ -53,29 +57,31 @@ func TestReadMetadataReturnsMinimalWhenNoSidecar(t *testing.T) {
 	if meta.Metadata.Title != "my-book" {
 		t.Fatalf("title = %q, want %q", meta.Metadata.Title, "my-book")
 	}
-	if meta.SchemaVersion != SchemaVersion {
-		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, SchemaVersion)
+	if meta.SchemaVersion != shelff.SchemaVersion {
+		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, shelff.SchemaVersion)
 	}
 }
 
 func TestReadMetadataReturnsErrPDFNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "nonexistent.pdf")
 
-	_, err := ReadMetadata(pdfPath)
-	if !errors.Is(err, ErrPDFNotFound) {
+	_, err := shelff.ReadMetadata(pdfPath)
+	if !errors.Is(err, shelff.ErrPDFNotFound) {
 		t.Fatalf("error = %v, want ErrPDFNotFound", err)
 	}
 }
 
 func TestWriteMetadataCreatesWhenNoSidecar(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "new-book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := WriteMetadata(pdfPath, map[string]any{
+	meta, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"tags": []any{"go"},
 	})
 	if err != nil {
@@ -87,30 +93,37 @@ func TestWriteMetadataCreatesWhenNoSidecar(t *testing.T) {
 	if len(meta.Tags) != 1 || meta.Tags[0] != "go" {
 		t.Fatalf("tags = %v, want [go]", meta.Tags)
 	}
-	if meta.SchemaVersion != SchemaVersion {
-		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, SchemaVersion)
+	if meta.SchemaVersion != shelff.SchemaVersion {
+		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, shelff.SchemaVersion)
 	}
 }
 
 func TestWriteMetadataMergesIntoExisting(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := CreateSidecar(pdfPath)
+	_, err := shelff.CreateSidecar(pdfPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Write initial creator
-	existing, _ := ReadSidecar(pdfPath)
+	existing, err := shelff.ReadSidecar(pdfPath)
+	if err != nil {
+		t.Fatalf("ReadSidecar error = %v", err)
+	}
+	if existing == nil {
+		t.Fatal("ReadSidecar returned nil")
+	}
 	existing.Metadata.Creator = []string{"Ada"}
-	if err := WriteSidecar(pdfPath, existing); err != nil {
+	if err := shelff.WriteSidecar(pdfPath, existing); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := WriteMetadata(pdfPath, map[string]any{
+	meta, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"metadata": map[string]any{
 			"dc:creator": []any{"Bob"},
 		},
@@ -127,6 +140,7 @@ func TestWriteMetadataMergesIntoExisting(t *testing.T) {
 }
 
 func TestWriteMetadataNilPatchDeletesField(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
@@ -134,13 +148,16 @@ func TestWriteMetadataNilPatchDeletesField(t *testing.T) {
 	}
 
 	cat := "ref"
-	created, _ := CreateSidecar(pdfPath)
+	created, err := shelff.CreateSidecar(pdfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	created.Category = &cat
-	if err := WriteSidecar(pdfPath, created); err != nil {
+	if err := shelff.WriteSidecar(pdfPath, created); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := WriteMetadata(pdfPath, map[string]any{
+	meta, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"category": nil,
 	})
 	if err != nil {
@@ -152,33 +169,37 @@ func TestWriteMetadataNilPatchDeletesField(t *testing.T) {
 }
 
 func TestWriteMetadataForcesSchemaVersion(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := WriteMetadata(pdfPath, map[string]any{
+	meta, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"schemaVersion": nil,
 	})
 	if err != nil {
 		t.Fatalf("WriteMetadata error = %v", err)
 	}
-	if meta.SchemaVersion != SchemaVersion {
-		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, SchemaVersion)
+	if meta.SchemaVersion != shelff.SchemaVersion {
+		t.Fatalf("schemaVersion = %d, want %d", meta.SchemaVersion, shelff.SchemaVersion)
 	}
 }
 
 func TestWriteMetadataPreservesTitle(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, _ = CreateSidecar(pdfPath)
+	if _, err := shelff.CreateSidecar(pdfPath); err != nil {
+		t.Fatal(err)
+	}
 
-	meta, err := WriteMetadata(pdfPath, map[string]any{
+	meta, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"tags": []any{"test"},
 	})
 	if err != nil {
@@ -190,6 +211,7 @@ func TestWriteMetadataPreservesTitle(t *testing.T) {
 }
 
 func TestWriteMetadataPreservesUnknownTopLevelFields(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
@@ -198,11 +220,11 @@ func TestWriteMetadataPreservesUnknownTopLevelFields(t *testing.T) {
 
 	// Write sidecar with unknown field
 	sidecarJSON := `{"schemaVersion":1,"metadata":{"dc:title":"book"},"x-custom":42}`
-	if err := os.WriteFile(SidecarPath(pdfPath), []byte(sidecarJSON), 0o644); err != nil {
+	if err := os.WriteFile(shelff.SidecarPath(pdfPath), []byte(sidecarJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := WriteMetadata(pdfPath, map[string]any{
+	_, err := shelff.WriteMetadata(pdfPath, map[string]any{
 		"tags": []any{"go"},
 	})
 	if err != nil {
@@ -210,7 +232,7 @@ func TestWriteMetadataPreservesUnknownTopLevelFields(t *testing.T) {
 	}
 
 	// Read raw file to check x-custom preserved
-	data, err := os.ReadFile(SidecarPath(pdfPath))
+	data, err := os.ReadFile(shelff.SidecarPath(pdfPath))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,23 +246,25 @@ func TestWriteMetadataPreservesUnknownTopLevelFields(t *testing.T) {
 }
 
 func TestWriteMetadataReturnsErrPDFNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "nonexistent.pdf")
 
-	_, err := WriteMetadata(pdfPath, map[string]any{})
-	if !errors.Is(err, ErrPDFNotFound) {
+	_, err := shelff.WriteMetadata(pdfPath, map[string]any{})
+	if !errors.Is(err, shelff.ErrPDFNotFound) {
 		t.Fatalf("error = %v, want ErrPDFNotFound", err)
 	}
 }
 
 func TestWriteMetadataEmptyPatch(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "book.pdf")
 	if err := os.WriteFile(pdfPath, []byte("%PDF-"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	meta, err := WriteMetadata(pdfPath, nil)
+	meta, err := shelff.WriteMetadata(pdfPath, nil)
 	if err != nil {
 		t.Fatalf("WriteMetadata error = %v", err)
 	}

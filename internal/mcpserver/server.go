@@ -285,11 +285,8 @@ func (s *Server) readMetadata(_ context.Context, _ *mcp.CallToolRequest, in pdfP
 		return nil, readMetadataOutput{}, err
 	}
 
-	sidecar, err := shelff.ReadSidecar(pdfPath)
-	if err != nil {
-		return nil, readMetadataOutput{}, err
-	}
-	hasSidecar := sidecar != nil
+	_, statErr := os.Stat(shelff.SidecarPath(pdfPath))
+	hasSidecar := statErr == nil
 
 	meta, err := shelff.ReadMetadata(pdfPath)
 	if err != nil {
