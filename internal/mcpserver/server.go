@@ -76,8 +76,8 @@ type reorderNamesInput struct {
 }
 
 type readMetadataOutput struct {
-	Exists   bool                    `json:"exists"`
-	Metadata *shelff.SidecarMetadata `json:"metadata,omitempty"`
+	HasSidecar bool                    `json:"hasSidecar"`
+	Metadata   *shelff.SidecarMetadata `json:"metadata,omitempty"`
 }
 
 type readCategoriesOutput struct {
@@ -296,7 +296,7 @@ func (s *Server) readMetadata(_ context.Context, _ *mcp.CallToolRequest, in pdfP
 		return nil, readMetadataOutput{}, err
 	}
 	return nil, readMetadataOutput{
-		Exists:   hasSidecar,
+		HasSidecar: hasSidecar,
 		Metadata: meta,
 	}, nil
 }
@@ -312,8 +312,8 @@ func (s *Server) createSidecar(_ context.Context, _ *mcp.CallToolRequest, in pdf
 		return nil, readMetadataOutput{}, err
 	}
 	return nil, readMetadataOutput{
-		Exists:   true,
-		Metadata: sidecar,
+		HasSidecar: true,
+		Metadata:   sidecar,
 	}, nil
 }
 
@@ -329,8 +329,8 @@ func (s *Server) writeMetadata(_ context.Context, _ *mcp.CallToolRequest, in wri
 	}
 
 	return nil, readMetadataOutput{
-		Exists:   true,
-		Metadata: written,
+		HasSidecar: true,
+		Metadata:   written,
 	}, nil
 }
 

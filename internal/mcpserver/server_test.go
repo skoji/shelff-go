@@ -107,7 +107,7 @@ func TestReadOnlyToolsReturnStructuredData(t *testing.T) {
 	}
 	var readOut readMetadataOutput
 	decodeStructuredContent(t, readResult, &readOut)
-	if !readOut.Exists || readOut.Metadata == nil || readOut.Metadata.Metadata.Title != "book" {
+	if !readOut.HasSidecar || readOut.Metadata == nil || readOut.Metadata.Metadata.Title != "book" {
 		t.Fatalf("read_metadata output = %#v", readOut)
 	}
 
@@ -120,8 +120,8 @@ func TestReadOnlyToolsReturnStructuredData(t *testing.T) {
 	}
 	var missingReadOut readMetadataOutput
 	decodeStructuredContent(t, missingReadResult, &missingReadOut)
-	if missingReadOut.Exists {
-		t.Fatalf("read_metadata missing: exists = true, want false")
+	if missingReadOut.HasSidecar {
+		t.Fatalf("read_metadata missing: hasSidecar = true, want false")
 	}
 	if missingReadOut.Metadata == nil {
 		t.Fatal("read_metadata missing: metadata is nil, want minimal metadata")
@@ -251,7 +251,7 @@ func TestSidecarMutationTools(t *testing.T) {
 	}
 	var createOut readMetadataOutput
 	decodeStructuredContent(t, createResult, &createOut)
-	if !createOut.Exists || createOut.Metadata == nil || createOut.Metadata.Metadata.Title != "book" {
+	if !createOut.HasSidecar || createOut.Metadata == nil || createOut.Metadata.Metadata.Title != "book" {
 		t.Fatalf("create_sidecar output = %#v", createOut)
 	}
 
