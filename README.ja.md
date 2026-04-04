@@ -114,6 +114,7 @@ Claudeを使用する場合、ライブラリが大きいと `scan_books` の結
 | `read_categories` | カテゴリ定義を読み取り |
 | `read_tag_order` | タグの表示順を読み取り |
 | `check_library` | ライブラリの診断チェックを実行 |
+| `list_directories` | ライブラリ内のディレクトリを一覧 |
 
 ### 変更ツール
 
@@ -126,8 +127,9 @@ Claudeを使用する場合、ライブラリが大きいと `scan_books` の結
 | `rename_book` | PDFとサイドカーをリネーム |
 | `add_category` / `remove_category` / `rename_category` / `reorder_categories` | カテゴリ管理 |
 | `add_tag_to_order` / `remove_tag_from_order` / `rename_tag` / `reorder_tags` | タグ順序管理 |
+| `create_directory` | ライブラ���内にディレクトリを作成（親ディレクトリも自動作成） |
 
-`delete_book` はMCP経由では意図的に**公開していません**。エージェントのワークフローによるPDFの誤削除リスクを低減するためです。
+`delete_book` と `delete_directory` はMCP経由では意図的に**公開していません**。エージェントのワークフローによる誤削除リスクを低減するためです。
 
 ## Goライブラリ
 

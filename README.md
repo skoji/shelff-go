@@ -114,6 +114,7 @@ When using Claude, `scan_books` results may be truncated if your library is larg
 | `read_categories` | Read category definitions |
 | `read_tag_order` | Read tag display order |
 | `check_library` | Run diagnostic checks on the library |
+| `list_directories` | List directories in the library |
 
 ### Mutation tools
 
@@ -126,8 +127,9 @@ When using Claude, `scan_books` results may be truncated if your library is larg
 | `rename_book` | Rename a PDF and its sidecar |
 | `add_category` / `remove_category` / `rename_category` / `reorder_categories` | Manage categories |
 | `add_tag_to_order` / `remove_tag_from_order` / `rename_tag` / `reorder_tags` | Manage tag order |
+| `create_directory` | Create a directory (and parents) within the library |
 
-`delete_book` is intentionally **not** exposed via MCP, to reduce the risk of destructive PDF deletion from agent workflows.
+`delete_book` and `delete_directory` are intentionally **not** exposed via MCP, to reduce the risk of destructive PDF deletion from agent workflows.
 
 ## Go library
 

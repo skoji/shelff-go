@@ -22,6 +22,7 @@ The library provides APIs for:
 - reading, creating, updating, and deleting sidecar metadata
 - moving, renaming, and deleting PDF + sidecar pairs
 - managing categories and tag order
+- creating, listing, and deleting directories within the library
 - scanning a library for books and orphaned sidecars
 - validating sidecars against the embedded schema
 - computing library statistics and collecting tags
@@ -247,6 +248,8 @@ Category/tag cascade operations update sidecars sequentially. If one sidecar wri
 - `MoveBook(pdfPath string, destDir string) (string, error)`
 - `RenameBook(pdfPath string, newName string) (string, error)`
 - `DeleteBook(pdfPath string) error`
+- `ReadMetadata(pdfPath string) (*SidecarMetadata, error)`
+- `WriteMetadata(pdfPath string, partial map[string]any) (*SidecarMetadata, error)`
 
 ### Library methods
 
@@ -270,6 +273,9 @@ Category/tag cascade operations update sidecars sequentially. If one sidecar wri
 - `(*Library).Stats() (*LibraryStats, error)`
 - `(*Library).CollectAllTags() ([]string, error)`
 - `(*Library).CheckLibrary() (*CheckLibraryResult, error)`
+- `(*Library).MakeDirectory(relPath string) error`
+- `(*Library).ListDirectories(directory string, recursive bool) ([]string, error)`
+- `(*Library).DeleteDirectory(relPath string) error`
 
 ## Exported data types
 
@@ -312,6 +318,8 @@ Some commonly returned errors:
 - `ErrCategoryMismatch`
 - `ErrEmptyName`
 - `ErrNilSidecarMetadata`
+- `ErrPathOutsideRoot`
+- `ErrDirectoryNotEmpty`
 
 `RollbackError` indicates that both the original operation and the rollback failed.
 
